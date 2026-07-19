@@ -1,0 +1,454 @@
+{
+  "name": "Football News AI Digest — Telegram (AR)",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "nodes": [
+    {
+      "id": "bfa4faf6-dfe2-4445-849e-e9b00cb2c300",
+      "name": "8AM & 8PM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-1600, 0],
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 8 * * *" },
+            { "field": "cronExpression", "expression": "0 20 * * *" }
+          ]
+        }
+      },
+      "notes": "Cron: fires 08:00 and 20:00 daily (instance timezone). Add/edit rules to change schedule."
+    },
+    {
+      "id": "6e368301-0451-4d88-8795-7a020fa4a685",
+      "name": "Determine Digest Period",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1360, 0],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "periodLabel", "type": "string", "value": "={{ $now.hour < 14 ? \"التحديث الصباحي\" : \"التحديث المسائي\" }}" },
+            { "id": "a2", "name": "periodEmoji", "type": "string", "value": "={{ $now.hour < 14 ? \"🌅\" : \"🌆\" }}" },
+            { "id": "a3", "name": "runDate", "type": "string", "value": "={{ $now.toFormat(\"yyyy-LL-dd\") }}" }
+          ]
+        }
+      },
+      "notes": "Labels this run as Morning or Evening update based on the hour it fires."
+    },
+    {
+      "id": "378c7af7-bb57-4124-851b-3709b6ff35e5",
+      "name": "Fetch BBC Sport Football",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, -700],
+      "parameters": { "url": "http://feeds.bbci.co.uk/sport/football/rss.xml" },
+      "notes": "Public RSS feed, no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "21aba6b4-da13-4dcb-9e99-5759f2689ce9",
+      "name": "Combine All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [-760, 0],
+      "parameters": { "mode": "append", "numberInputs": 8 },
+      "notes": "Appends items from all 8 RSS branches into one list."
+    },
+    {
+      "id": "ebf07b05-24f3-42e9-b145-4e274dcba26b",
+      "name": "Fetch Sky Sports Football",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, -500],
+      "parameters": { "url": "https://www.skysports.com/rss/12040" },
+      "notes": "Public RSS feed, no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "21233f12-a975-46d0-a3f4-3db2ed3ed688",
+      "name": "Fetch Guardian Football",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, -300],
+      "parameters": { "url": "https://www.theguardian.com/football/rss" },
+      "notes": "Public RSS feed, no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "64c66590-4d54-473b-84c1-5f90b24df4e9",
+      "name": "Fetch ESPN Soccer",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, -100],
+      "parameters": { "url": "https://www.espn.com/espn/rss/soccer/news" },
+      "notes": "Public RSS feed, no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "94bf323c-f828-4e57-a107-6358532459c4",
+      "name": "Fetch Goal.com World Football",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, 100],
+      "parameters": { "url": "https://www.goal.com/feeds/en/news" },
+      "notes": "Public RSS feed, no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ec5cab6c-7437-41b9-87d0-8dda6902c287",
+      "name": "Fetch Goal.com Saudi Arabia",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, 300],
+      "parameters": { "url": "https://www.goal.com/feeds/en-sa/news" },
+      "notes": "Public RSS feed (Saudi Arabia edition), no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ae5f31bf-e03a-423f-8b6c-f97521c5aeae",
+      "name": "Fetch UEFA News",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, 500],
+      "parameters": { "url": "https://www.uefa.com/rssfeed/news/rss.xml" },
+      "notes": "Public RSS feed (Champions League / UEFA), no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a770325d-676a-40b1-8391-def024a3927d",
+      "name": "Fetch FIFA News",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [-1080, 700],
+      "parameters": { "url": "https://www.fifa.com/rss-feeds/news" },
+      "notes": "Public RSS feed (FIFA / national teams / World Cup), no API key required. Isolated with retry + continue-on-fail so it cannot block the other sources.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "59691667-f1f7-4dcf-a3f1-3a1581910901",
+      "name": "Deduplicate & Filter Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\nconst RECENCY_HOURS = 16;\nconst MIN_SIMILARITY = 0.55;\nconst MAX_ARTICLES = 100;\nconst now = new Date();\n\nconst context = $('Determine Digest Period').first().json;\n\nconst SOURCE_MAP = [\n  ['bbci.co.uk', 'BBC Sport'],\n  ['skysports.com', 'Sky Sports'],\n  ['theguardian.com', 'The Guardian'],\n  ['espn.com', 'ESPN'],\n  ['goal.com', 'Goal.com'],\n  ['uefa.com', 'UEFA'],\n  ['fifa.com', 'FIFA'],\n];\n\nfunction resolveSource(link) {\n  if (!link) return 'Unknown Source';\n  const lower = String(link).toLowerCase();\n  const hit = SOURCE_MAP.find(([host]) => lower.includes(host));\n  if (hit) return hit[1];\n  try {\n    return new URL(link).hostname.replace(/^www\\./, '');\n  } catch (e) {\n    return 'Unknown Source';\n  }\n}\n\nfunction normalizeTitle(title) {\n  return (title || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFKD')\n    .replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction tokenSet(normalized) {\n  return new Set(normalized.split(' ').filter((w) => w.length > 2));\n}\n\nfunction similarity(a, b) {\n  if (a.size === 0 || b.size === 0) return 0;\n  let shared = 0;\n  for (const token of a) {\n    if (b.has(token)) shared += 1;\n  }\n  return shared / Math.min(a.size, b.size);\n}\n\nconst rawItems = items\n  .map((item) => item.json)\n  .filter((json) => json && json.title && json.link && !json.error);\n\nconst withMeta = rawItems.map((json) => {\n  const publishedRaw = json.isoDate || json.pubDate || null;\n  const publishedDate = publishedRaw ? new Date(publishedRaw) : null;\n  const validDate = publishedDate && !isNaN(publishedDate.getTime());\n  const normalized = normalizeTitle(json.title);\n  return {\n    title: String(json.title).trim(),\n    link: json.link,\n    source: resolveSource(json.link),\n    publishedAt: validDate ? publishedDate.toISOString() : null,\n    publishedTimestamp: validDate ? publishedDate.getTime() : null,\n    snippet: String(json.contentSnippet || json.content || '').replace(/\\s+/g, ' ').trim().slice(0, 400),\n    tokens: tokenSet(normalized),\n  };\n});\n\nconst cutoff = now.getTime() - RECENCY_HOURS * 60 * 60 * 1000;\nconst recent = withMeta.filter((a) => a.publishedTimestamp === null || a.publishedTimestamp >= cutoff);\n\nrecent.sort((a, b) => (b.publishedTimestamp || 0) - (a.publishedTimestamp || 0));\n\nconst kept = [];\nfor (const article of recent) {\n  const isDuplicate = kept.some((k) => similarity(k.tokens, article.tokens) >= MIN_SIMILARITY);\n  if (!isDuplicate) kept.push(article);\n}\n\nconst limited = kept.slice(0, MAX_ARTICLES).map(({ tokens, ...rest }) => rest);\n\nreturn [\n  {\n    json: {\n      periodLabel: context.periodLabel,\n      periodEmoji: context.periodEmoji,\n      runDate: context.runDate,\n      totalCollected: rawItems.length,\n      totalAfterDedup: limited.length,\n      articles: limited,\n    },\n  },\n];\n"
+      },
+      "notes": "Drops failed-fetch items, keeps only articles from the last 16h, tags each with its source outlet, collapses near-duplicate headlines (same story reported by multiple outlets) via token-overlap similarity, and caps the pool at 100 items before AI ranking."
+    },
+    {
+      "id": "8ccbab43-5e45-4f77-b5ac-0e33f207103f",
+      "name": "Has Enough Articles?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-200, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "leftValue": "={{ $json.articles.length }}", "operator": { "type": "number", "operation": "gte" }, "rightValue": 3 }
+          ],
+          "combinator": "and"
+        }
+      },
+      "notes": "Guards against calling the AI on an empty/near-empty pool (e.g. every RSS source failed)."
+    },
+    {
+      "id": "05c1a08f-ae4a-4781-8f76-c6f49184bca4",
+      "name": "Rank & Summarize Top 10 Stories",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [140, 0],
+      "parameters": {
+        "promptType": "define",
+        "text": "=قائمة الأخبار المجمعة (JSON) لدورة \"{{ $json.periodLabel }}\" بتاريخ {{ $json.runDate }}:\n\n{{ JSON.stringify($json.articles) }}\n\nعدد الأخبار المتاحة: {{ $json.articles.length }}. اتبع تعليمات النظام بدقة وأعد فقط أفضل 10 أخبار.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "أنت محرر رياضي محترف متخصص في كرة القدم العالمية والعربية، تكتب بأسلوب صحفي رصين باللغة العربية الفصحى.\n\nستتلقى قائمة أخبار كرة قدم بصيغة JSON، كل عنصر يحتوي على title و link و source و publishedAt و snippet.\n\nمهمتك:\n1) اقرأ كل خبر وقيّم أهميته الحقيقية.\n2) استبعد نهائيًا: الشائعات غير المؤكدة، العناوين المضللة (clickbait)، الأخبار المكررة أو الهامشية منخفضة القيمة.\n3) أعطِ أولوية لـ: الانتقالات الرسمية المؤكدة، الإصابات الكبرى، نتائج المباريات المهمة، الأخبار العاجلة، أخبار الفيفا والاتحاد الأوروبي (UEFA)، أخبار الدوري السعودي، كريستيانو رونالدو، ليونيل ميسي، مبابي، دوري أبطال أوروبا، المنتخبات الوطنية، والبيانات الرسمية للأندية.\n4) اختر 10 أخبار فقط، الأهم أولًا (rank من 1 إلى 10).\n5) لكل خبر اكتب: عنوانًا عربيًا مختصرًا (title_ar)، وملخصًا صحفيًا احترافيًا من جملتين إلى ثلاث جمل لا يتجاوز 80 كلمة (summary_ar)، واذكر المصدر (source) وتاريخ/وقت النشر كما ورد (published_at) ورابط الخبر الأصلي كما هو دون تعديل (link).\n6) لا تختلق أي معلومة أو رابط غير موجود في المصدر. إن لم يوجد 10 أخبار تستحق النشر، أعد العدد المتاح فقط.\n7) أعد period_label كما وصلك في الرسالة.",
+          "maxIterations": 5
+        }
+      },
+      "notes": "Reads every collected article, scores importance, drops clickbait/rumors/repeats, and returns the Top 10 in Arabic sports-journalism style.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d2ac8831-6276-451f-8404-620ff84b91fd",
+      "name": "OpenAI GPT-5.4 Mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [140, 260],
+      "parameters": {
+        "model": { "__rl": true, "mode": "list", "value": "gpt-5.4-mini", "cachedResultName": "gpt-5.4-mini" },
+        "options": { "temperature": 0.3, "maxTokens": 3000, "timeout": 120000, "maxRetries": 2 }
+      },
+      "credentials": {
+        "openAiApi": { "name": "OpenAI account" }
+      }
+    },
+    {
+      "id": "a2d90b29-bc0c-4034-b2c2-0405660f899f",
+      "name": "Top 10 Stories Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [340, 260],
+      "parameters": {
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\"period_label\":\"التحديث الصباحي\",\"stories\":[{\"rank\":1,\"title_ar\":\"عنوان الخبر بالعربية\",\"summary_ar\":\"ملخص صحفي احترافي من جملتين إلى ثلاث جمل لا يتجاوز 80 كلمة\",\"source\":\"BBC Sport\",\"published_at\":\"2026-07-19T07:30:00.000Z\",\"link\":\"https://example.com/article\"}]}"
+      }
+    },
+    {
+      "id": "c09093c3-f406-4766-bd2a-165b015183db",
+      "name": "Build Telegram Digest Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\nconst result = $json.output || $json;\nconst stories = Array.isArray(result.stories) ? result.stories.slice(0, 10) : [];\nconst periodLabel = result.period_label || $('Determine Digest Period').first().json.periodLabel;\nconst numberEmojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];\nconst divider = '━━━━━━━━━━━━━━';\n\nfunction formatTime(iso) {\n  if (!iso) return 'غير محدد';\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return String(iso);\n  const pad = (n) => String(n).padStart(2, '0');\n  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;\n}\n\nconst lines = [];\nlines.push('🏆 أهم أخبار كرة القدم');\nlines.push(`📅 ${periodLabel}`);\nlines.push(divider);\n\nif (stories.length === 0) {\n  lines.push('⚠️ لم يتم العثور على أخبار تستحق النشر في هذه الدورة.');\n  lines.push(divider);\n} else {\n  stories.forEach((story, idx) => {\n    const num = numberEmojis[idx] || `${idx + 1}.`;\n    lines.push(`${num} ⚽ ${story.title_ar || 'بدون عنوان'}`);\n    lines.push(`📰 ${story.summary_ar || ''}`);\n    lines.push(`🌍 ${story.source || 'غير معروف'}`);\n    lines.push(`🕒 ${formatTime(story.published_at)}`);\n    lines.push(`🔗 ${story.link || ''}`);\n    lines.push(divider);\n  });\n}\n\nlines.push('🤖 تم الإنشاء تلقائيًا بواسطة n8n + OpenAI');\n\nreturn [{ json: { messageText: lines.join('\\n'), storyCount: stories.length, periodLabel } }];\n"
+      },
+      "notes": "Renders the AI Agent structured output into the final Telegram-ready Arabic digest text."
+    },
+    {
+      "id": "e18dad40-9eab-4c13-ab88-6c8042c2aada",
+      "name": "Send Football Digest to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [700, 0],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.messageText }}",
+        "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
+      },
+      "notes": "Chat ID is read from the TELEGRAM_CHAT_ID environment variable — never hardcoded. Bot token lives in the Telegram credential, also never hardcoded in this JSON.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "telegramApi": { "name": "Telegram account" }
+      }
+    },
+    {
+      "id": "72ac1e80-ea3b-4841-a2a2-e62bc2fe52b0",
+      "name": "Format Agent Failure Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [140, 320],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            { "id": "e1", "name": "errorMessage", "type": "string", "value": "=فشل تنفيذ وكيل الذكاء الاصطناعي (OpenAI) أثناء تحليل/تلخيص الأخبار.\nرسالة الخطأ: {{ $json.error?.message ?? $json.message ?? \"غير معروف\" }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9f4c394d-d54a-4438-a739-5402d90fc098",
+      "name": "Send Error Alert to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [420, 320],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 تنبيه: حدث خطأ في أتمتة أخبار كرة القدم\n{{ $json.errorMessage }}\n🕒 {{ $now.toFormat(\"yyyy-LL-dd HH:mm\") }} — {{ $workflow.name }}\nExecution ID: {{ $execution.id }}",
+        "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
+      },
+      "notes": "Best-effort failure notification. Uses the same env-based chat ID and Telegram credential as the main digest.",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "telegramApi": { "name": "Telegram account" }
+      }
+    },
+    {
+      "id": "9b1733d7-0b5d-427b-b966-ea578d56bc4b",
+      "name": "Format Telegram Failure Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 320],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            { "id": "e1", "name": "errorMessage", "type": "string", "value": "=فشل إرسال رسالة النشرة الرئيسية إلى تيليجرام.\nرسالة الخطأ: {{ $json.error?.message ?? $json.message ?? \"غير معروف\" }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d7c6dca0-2ad6-435a-ba4c-f09af2c71c8f",
+      "name": "Format No-Articles Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-200, 320],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            { "id": "e1", "name": "errorMessage", "type": "string", "value": "=لم يتم جمع عدد كافٍ من الأخبار الموثوقة لدورة {{ $json.periodLabel }} ({{ $json.totalAfterDedup }} خبر فقط بعد إزالة التكرار من أصل {{ $json.totalCollected }}). سيتم إعادة المحاولة في الدورة القادمة." }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1f5cbe5b-2459-4722-90d8-666f530590e9",
+      "name": "Sticky Note 4f40969b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1650, -750],
+      "parameters": {
+        "content": "## 1) جدولة + جمع الأخبار\nيعمل تلقائيًا 08:00 و20:00 يوميًا.\n8 مصادر RSS مجانية بدون مفاتيح API.\nكل مصدر معزول (Retry + Continue on Fail) حتى لا يوقف مصدر معطّل باقي التشغيل.",
+        "color": 4,
+        "width": 820,
+        "height": 1600
+      }
+    },
+    {
+      "id": "dd2f039b-ef4a-444e-89a4-835ffc12d33d",
+      "name": "Sticky Note 68b6beca",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-810, -50],
+      "parameters": {
+        "content": "## 2) الدمج + إزالة التكرار\nدمج كل المصادر ثم كود يزيل الأخبار المكررة (تشابه العناوين) والقديمة (> 16 ساعة)، ويحدد المصدر لكل خبر.\nبوابة أمان: إن لم يتوفر 3 أخبار على الأقل، لا يتم استدعاء الذكاء الاصطناعي.",
+        "color": 5,
+        "width": 860,
+        "height": 200
+      }
+    },
+    {
+      "id": "0f3e79bf-9376-4142-938e-7a53f17a8840",
+      "name": "Sticky Note 0e26d4a4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [90, -50],
+      "parameters": {
+        "content": "## 3) الذكاء الاصطناعي\nOpenAI GPT-5.4 Mini عبر AI Agent + Structured Output Parser.\nيقيّم الأهمية، يستبعد الشائعات والتكرار، ويختار أفضل 10 أخبار بالعربية.",
+        "color": 6,
+        "width": 300,
+        "height": 200
+      }
+    },
+    {
+      "id": "1ebb093a-e521-45b6-b23e-55d654ab314e",
+      "name": "Sticky Note 6f7d8593",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [370, -50],
+      "parameters": {
+        "content": "## 4) التنسيق + الإرسال\nيبني رسالة تيليجرام منسقة بالعربية ثم يرسلها.\nTELEGRAM_CHAT_ID من متغير بيئة — غير مكتوب مباشرة في الكود.",
+        "color": 3,
+        "width": 580,
+        "height": 200
+      }
+    },
+    {
+      "id": "ac96d135-e994-44bc-bd2f-6d122cb5af17",
+      "name": "Sticky Note 05639967",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-250, 270],
+      "parameters": {
+        "content": "## 5) معالجة الأخطاء\nثلاث حالات فشل محتملة (لا توجد أخبار كافية / فشل الذكاء الاصطناعي / فشل الإرسال) تصب كلها في تنبيه واحد عبر تيليجرام.",
+        "color": 2,
+        "width": 1200,
+        "height": 200
+      }
+    }
+  ],
+  "connections": {
+    "8AM & 8PM Trigger": {
+      "main": [
+        [
+          { "node": "Determine Digest Period", "type": "main", "index": 0 },
+          { "node": "Fetch BBC Sport Football", "type": "main", "index": 0 },
+          { "node": "Fetch Sky Sports Football", "type": "main", "index": 0 },
+          { "node": "Fetch Guardian Football", "type": "main", "index": 0 },
+          { "node": "Fetch ESPN Soccer", "type": "main", "index": 0 },
+          { "node": "Fetch Goal.com World Football", "type": "main", "index": 0 },
+          { "node": "Fetch Goal.com Saudi Arabia", "type": "main", "index": 0 },
+          { "node": "Fetch UEFA News", "type": "main", "index": 0 },
+          { "node": "Fetch FIFA News", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch BBC Sport Football": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 0 }]] },
+    "Combine All Sources": { "main": [[{ "node": "Deduplicate & Filter Articles", "type": "main", "index": 0 }]] },
+    "Fetch Sky Sports Football": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 1 }]] },
+    "Fetch Guardian Football": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 2 }]] },
+    "Fetch ESPN Soccer": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 3 }]] },
+    "Fetch Goal.com World Football": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 4 }]] },
+    "Fetch Goal.com Saudi Arabia": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 5 }]] },
+    "Fetch UEFA News": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 6 }]] },
+    "Fetch FIFA News": { "main": [[{ "node": "Combine All Sources", "type": "main", "index": 7 }]] },
+    "Deduplicate & Filter Articles": { "main": [[{ "node": "Has Enough Articles?", "type": "main", "index": 0 }]] },
+    "Has Enough Articles?": {
+      "main": [
+        [{ "node": "Rank & Summarize Top 10 Stories", "type": "main", "index": 0 }],
+        [{ "node": "Format No-Articles Alert", "type": "main", "index": 0 }]
+      ]
+    },
+    "Rank & Summarize Top 10 Stories": {
+      "main": [
+        [{ "node": "Build Telegram Digest Message", "type": "main", "index": 0 }],
+        [{ "node": "Format Agent Failure Alert", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI GPT-5.4 Mini": { "ai_languageModel": [[{ "node": "Rank & Summarize Top 10 Stories", "type": "ai_languageModel", "index": 0 }]] },
+    "Top 10 Stories Schema": { "ai_outputParser": [[{ "node": "Rank & Summarize Top 10 Stories", "type": "ai_outputParser", "index": 0 }]] },
+    "Build Telegram Digest Message": { "main": [[{ "node": "Send Football Digest to Telegram", "type": "main", "index": 0 }]] },
+    "Send Football Digest to Telegram": {
+      "main": [
+        [],
+        [{ "node": "Format Telegram Failure Alert", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Agent Failure Alert": { "main": [[{ "node": "Send Error Alert to Telegram", "type": "main", "index": 0 }]] },
+    "Format Telegram Failure Alert": { "main": [[{ "node": "Send Error Alert to Telegram", "type": "main", "index": 0 }]] },
+    "Format No-Articles Alert": { "main": [[{ "node": "Send Error Alert to Telegram", "type": "main", "index": 0 }]] }
+  }
+}
