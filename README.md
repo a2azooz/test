@@ -86,14 +86,22 @@ flowchart TD
    ```bash
    cp .env.example .env
    ```
-3. Create an **n8n Variable** named `TELEGRAM_CHAT_ID` (see
-   [Environment variables](#environment-variables) below) — this works the same way on
-   n8n Cloud and self-hosted, unlike raw process environment variables.
+3. Set `TELEGRAM_CHAT_ID` — see [Environment variables](#environment-variables) below.
+   How you set it depends on whether your n8n plan has the **Variables** feature (see note).
 
 > **Note on n8n Cloud:** Cloud instances block `{{ $env.* }}` access in expressions for
-> security and this cannot be changed by end users. This workflow therefore reads the
-> chat ID via n8n's built-in **Variables** feature (`{{ $vars.TELEGRAM_CHAT_ID }}`)
-> instead of `$env`, so it works out of the box on both Cloud and self-hosted.
+> security and this cannot be changed by end users, so this workflow does **not** use
+> `$env`. Instead:
+> - If your plan has **Settings → Variables**, use `{{ $vars.TELEGRAM_CHAT_ID }}` in the
+>   `chatId` field of both Telegram nodes (works on Cloud and self-hosted alike).
+> - **Variables is not available on every n8n Cloud plan.** If you don't see it in
+>   Settings, just paste your numeric chat ID directly into the `chatId` field of both
+>   Telegram nodes instead. A chat ID is a destination identifier, not a secret — the
+>   actual bot token stays safely in the Telegram credential either way.
+>
+> The shipped `workflows/football-news-ai-digest.json` ships with `chatId` set to the
+> placeholder `REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID` — swap in `{{ $vars.TELEGRAM_CHAT_ID }}`
+> or your literal chat ID after import, based on which option your plan supports.
 
 ## Importing the workflow
 
@@ -105,7 +113,8 @@ flowchart TD
    - **OpenAI GPT-5.4 Mini** → an `OpenAI API` credential
    - **Send Football Digest to Telegram** → a `Telegram API` credential
    - **Send Error Alert to Telegram** → the same `Telegram API` credential
-4. Save, then **Activate** the workflow (top-right toggle) so the Schedule Trigger starts
+4. On both Telegram nodes, replace the `chatId` placeholder as described in the note above.
+5. Save, then **Activate** the workflow (top-right toggle) so the Schedule Trigger starts
    firing at 08:00/20:00.
 
 ## Environment variables
@@ -114,18 +123,19 @@ flowchart TD
 |----------------------|--------------------------------------------|------------------------------------------------------------------|
 | `OPENAI_API_KEY`     | the `OpenAI API` **credential** in n8n     | Authenticates the AI Agent's language model                    |
 | `TELEGRAM_TOKEN`     | the `Telegram API` **credential** in n8n   | Authenticates the bot that sends messages                       |
-| `TELEGRAM_CHAT_ID`   | an **n8n Variable**, read via `{{ $vars.TELEGRAM_CHAT_ID }}` in both Telegram nodes | Destination chat/channel/group for the digest and error alerts |
+| `TELEGRAM_CHAT_ID`   | an n8n **Variable** (if available) or the `chatId` field directly | Destination chat/channel/group for the digest and error alerts |
 
 `OPENAI_API_KEY` and `TELEGRAM_TOKEN` are entered once into n8n's encrypted credential
 store (see below) — the standard, secure way n8n handles secrets; they are never read from
 process environment variables by the workflow itself. `.env.example` documents them purely
 for your own records / secrets manager.
 
-`TELEGRAM_CHAT_ID` is **not** a secret, so it uses n8n's **Variables** feature instead of a
-credential: **Settings → Variables → Add Variable**, key `TELEGRAM_CHAT_ID`, value your
-numeric chat ID. This works identically on n8n Cloud and self-hosted, and — unlike
-`{{ $env.* }}` — is never blocked by the `N8N_BLOCK_ENV_ACCESS_IN_NODE` security setting
-that Cloud instances enforce.
+`TELEGRAM_CHAT_ID` is **not** a secret. Prefer n8n's **Variables** feature
+(**Settings → Variables → Add Variable**, key `TELEGRAM_CHAT_ID`) when your plan has it —
+it works identically on Cloud and self-hosted, and unlike `{{ $env.* }}` is never blocked
+by the `N8N_BLOCK_ENV_ACCESS_IN_NODE` setting Cloud enforces. If Variables isn't available
+on your plan, hardcoding the numeric chat ID directly into the `chatId` field of both
+Telegram nodes is a reasonable, low-risk fallback.
 
 ## Setting up credentials
 
@@ -137,10 +147,19 @@ that Cloud instances enforce.
 **Telegram:**
 1. n8n → **Credentials** → **New** → **Telegram API**.
 2. Paste your `TELEGRAM_TOKEN`. Save as `Telegram account`.
-3. Get your chat ID: message your bot once, then message `@get_id_bot` (or call
-   `https://api.telegram.org/bot<token>/getUpdates`) to read the numeric chat ID.
-4. n8n → **Settings → Variables → Add Variable** → key `TELEGRAM_CHAT_ID`, value the chat
-   ID from step 3.
+3. Get your chat ID — the most reliable way: message **@userinfobot** on Telegram, it
+   replies instantly with your numeric user ID, which is the same ID as your private chat
+   with any bot you've started. (Alternative: message your own bot once, then call
+   `https://api.telegram.org/bot<token>/getUpdates` and read `message.chat.id` from the
+   response — this only works if you've already messaged the bot at least once.)
+4. Set `TELEGRAM_CHAT_ID` per the [Environment variables](#environment-variables) section
+   above (Variables if available, otherwise directly in both Telegram nodes' `chatId` field).
+
+> **If you ever rotate or recreate your bot** (new token from @BotFather), remember to
+> **update the token inside the existing `Telegram account` credential** — don't just
+> update the chat ID. A stale token in the credential is a common cause of
+> `Bad Request: chat not found`, since the workflow would then be sending through a bot
+> you never started a conversation with.
 
 ## Running manually
 
@@ -219,9 +238,9 @@ to a larger or smaller model.
 
 ## Security
 
-- No API keys, bot tokens, or chat IDs are hardcoded anywhere in `workflows/football-news-ai-digest.json`.
-- `OPENAI_API_KEY` and `TELEGRAM_TOKEN` live only in n8n's encrypted credential store.
-- `TELEGRAM_CHAT_ID` is read at runtime from an n8n **Variable**, not baked into the workflow.
+- No API keys or bot tokens are hardcoded anywhere in `workflows/football-news-ai-digest.json` — they live only in n8n's encrypted credential store.
+- `TELEGRAM_CHAT_ID` is a destination identifier, not a secret; depending on your plan it's either an n8n Variable or a plain value in the `chatId` field — either way the bot token stays in the credential.
+- Never paste a bot token (or any secret) into a node's **Notes** field or into chat with an assistant helping you debug — Notes are stored in plain text as part of the workflow and are easy to forget about. If you ever do this by accident, remove it immediately and rotate the token via @BotFather.
 - `.env` (with real secrets) should **never** be committed — only `.env.example` is tracked.
 
 ## Troubleshooting
@@ -229,9 +248,10 @@ to a larger or smaller model.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Workflow doesn't fire at 08:00/20:00 | Workflow not activated, or instance timezone unexpected | Toggle **Active** on; check **Settings → Timezone** on the workflow/instance |
-| Telegram send fails with "chat not found" | `TELEGRAM_CHAT_ID` wrong, or bot never messaged first | Message the bot once, re-fetch chat ID via `getUpdates` |
-| `{{ $vars.TELEGRAM_CHAT_ID }}` resolves to empty | The n8n Variable doesn't exist yet | **Settings → Variables** → add `TELEGRAM_CHAT_ID` with your numeric chat ID |
-| `"access to env vars denied"` error on a Telegram node | Node still uses `{{ $env.TELEGRAM_CHAT_ID }}` (blocked on n8n Cloud) | Switch the `chatId` field to `{{ $vars.TELEGRAM_CHAT_ID }}` and set the Variable as above — this workflow already ships with `$vars` |
+| Telegram send fails with `Bad Request: chat not found` | `chatId` is wrong/empty, the bot was never messaged first, **or the Telegram credential holds a different bot's token than the one you actually started a chat with** | Confirm the token in the `Telegram account` credential matches the bot you messaged; get the correct chat ID via `@userinfobot` (see [Setting up credentials](#setting-up-credentials)) |
+| `{{ $vars.TELEGRAM_CHAT_ID }}` resolves to empty | The n8n Variable doesn't exist, or Variables isn't available on your plan | **Settings → Variables** → add it; if the menu doesn't exist on your plan, hardcode the chat ID directly in the `chatId` field instead |
+| `"access to env vars denied"` error on a Telegram node | A node uses `{{ $env.TELEGRAM_CHAT_ID }}` (blocked on n8n Cloud) | Switch the `chatId` field to `{{ $vars.TELEGRAM_CHAT_ID }}` (if Variables is available) or a literal chat ID |
+| Getting `getUpdates` returns `{"ok":true,"result":[]}` | You haven't actually messaged the bot yet (bots can't message you first), or you're checking before sending | Open the bot in Telegram and press **Start** / send any message, then retry — or just use `@userinfobot` instead, which needs no bot interaction at all |
 | One RSS source frequently errors | Feed URL changed/blocked | Update the URL on that `Fetch …` node — the rest of the pipeline is unaffected either way |
 | Digest has fewer than 10 stories | Fewer than 10 articles survived filtering that cycle | Expected behavior — the AI only returns stories that pass the quality bar |
 | "No-Articles" alert fires often | Recency window (16h) too strict for your sources, or dedup threshold too aggressive | Adjust `RECENCY_HOURS` / `MIN_SIMILARITY` in the **Deduplicate & Filter Articles** code node |

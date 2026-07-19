@@ -213,6 +213,7 @@
       "position": [140, 260],
       "parameters": {
         "model": { "__rl": true, "mode": "list", "value": "gpt-5.4-mini", "cachedResultName": "gpt-5.4-mini" },
+        "responsesApiEnabled": true,
         "options": { "temperature": 0.3, "maxTokens": 3000, "timeout": 120000, "maxRetries": 2 }
       },
       "credentials": {
@@ -252,11 +253,11 @@
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
         "text": "={{ $json.messageText }}",
         "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
       },
-      "notes": "Chat ID is read from the TELEGRAM_CHAT_ID environment variable — never hardcoded. Bot token lives in the Telegram credential, also never hardcoded in this JSON.",
+      "notes": "Prefer {{ $vars.TELEGRAM_CHAT_ID }} if n8n Variables is available on your plan; otherwise replace the chatId value directly (a chat ID is a destination identifier, not a secret). The bot token itself lives only in the Telegram credential and is never written here.",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 3000,
@@ -290,11 +291,11 @@
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
         "text": "=🚨 تنبيه: حدث خطأ في أتمتة أخبار كرة القدم\n{{ $json.errorMessage }}\n🕒 {{ $now.toFormat(\"yyyy-LL-dd HH:mm\") }} — {{ $workflow.name }}\nExecution ID: {{ $execution.id }}",
         "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
       },
-      "notes": "Best-effort failure notification. Uses the same env-based chat ID and Telegram credential as the main digest.",
+      "notes": "Best-effort failure notification. Uses the same chat ID and Telegram credential as the main digest.",
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
