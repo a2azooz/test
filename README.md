@@ -196,6 +196,11 @@ edit (or add/remove) rules under **Trigger Rules**. To run more/less often, add 
 🤖 تم الإنشاء تلقائيًا بواسطة n8n + OpenAI
 ```
 
+> **Note:** Telegram hard-limits a single text message to 4096 characters. A full 10-story
+> digest routinely exceeds that, so **Build Telegram Digest Message** automatically splits
+> the content into multiple messages (labeled `📄 (1/2)`, `📄 (2/2)`, etc.) rather than
+> truncating any story. Each split part is sent as its own Telegram message in sequence.
+
 ## Editing the news sources
 
 Each source is its own **RSS Read** node (`Fetch <Source Name>`) feeding into the
@@ -253,6 +258,7 @@ to a larger or smaller model.
 | `"access to env vars denied"` error on a Telegram node | A node uses `{{ $env.TELEGRAM_CHAT_ID }}` (blocked on n8n Cloud) | Switch the `chatId` field to `{{ $vars.TELEGRAM_CHAT_ID }}` (if Variables is available) or a literal chat ID |
 | Getting `getUpdates` returns `{"ok":true,"result":[]}` | You haven't actually messaged the bot yet (bots can't message you first), or you're checking before sending | Open the bot in Telegram and press **Start** / send any message, then retry — or just use `@userinfobot` instead, which needs no bot interaction at all |
 | One RSS source frequently errors | Feed URL changed/blocked | Update the URL on that `Fetch …` node — the rest of the pipeline is unaffected either way |
+| Error alert arrives but the real digest never does | `Send Football Digest to Telegram` failed — check the execution's error data on that node. A common cause: the message exceeded Telegram's 4096-char limit | This workflow already auto-splits long digests (see [Message format](#message-format)); if you've customized the prompt/format and still hit this, lower `MAX_LEN` in **Build Telegram Digest Message** or shorten `summary_ar`'s word limit in the AI Agent's system message |
 | Digest has fewer than 10 stories | Fewer than 10 articles survived filtering that cycle | Expected behavior — the AI only returns stories that pass the quality bar |
 | "No-Articles" alert fires often | Recency window (16h) too strict for your sources, or dedup threshold too aggressive | Adjust `RECENCY_HOURS` / `MIN_SIMILARITY` in the **Deduplicate & Filter Articles** code node |
 | AI output doesn't match schema / empty digest | Model doesn't support structured output well, or `hasOutputParser` disabled | Keep `hasOutputParser: true` on the AI Agent node; try a different GPT-5.4 variant |
