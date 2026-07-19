@@ -252,7 +252,7 @@
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
         "text": "={{ $json.messageText }}",
         "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
       },
@@ -290,7 +290,7 @@
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
         "text": "=🚨 تنبيه: حدث خطأ في أتمتة أخبار كرة القدم\n{{ $json.errorMessage }}\n🕒 {{ $now.toFormat(\"yyyy-LL-dd HH:mm\") }} — {{ $workflow.name }}\nExecution ID: {{ $execution.id }}",
         "additionalFields": { "disable_web_page_preview": true, "appendAttribution": false }
       },

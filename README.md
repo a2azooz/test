@@ -81,15 +81,19 @@ flowchart TD
 
 1. Clone this repository (or just copy `workflows/football-news-ai-digest.json` and
    `.env.example` into your n8n project).
-2. Copy the environment template and fill in your real values:
+2. Copy the environment template and use it as your own reference for the secrets you'll
+   enter into n8n in the next steps:
    ```bash
    cp .env.example .env
    ```
-3. Make sure your n8n instance loads these environment variables (Docker `--env-file .env`,
-   `docker-compose.yml` `env_file:`, or your platform's secret manager).
-4. Enable environment-variable access in expressions if it isn't already
-   (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`, the n8n default) — the workflow reads
-   `TELEGRAM_CHAT_ID` via `{{ $env.TELEGRAM_CHAT_ID }}`.
+3. Create an **n8n Variable** named `TELEGRAM_CHAT_ID` (see
+   [Environment variables](#environment-variables) below) — this works the same way on
+   n8n Cloud and self-hosted, unlike raw process environment variables.
+
+> **Note on n8n Cloud:** Cloud instances block `{{ $env.* }}` access in expressions for
+> security and this cannot be changed by end users. This workflow therefore reads the
+> chat ID via n8n's built-in **Variables** feature (`{{ $vars.TELEGRAM_CHAT_ID }}`)
+> instead of `$env`, so it works out of the box on both Cloud and self-hosted.
 
 ## Importing the workflow
 
@@ -106,17 +110,22 @@ flowchart TD
 
 ## Environment variables
 
-| Variable            | Used by                                   | Purpose                                                        |
+| Variable            | Where it lives                             | Purpose                                                        |
 |----------------------|--------------------------------------------|------------------------------------------------------------------|
 | `OPENAI_API_KEY`     | the `OpenAI API` **credential** in n8n     | Authenticates the AI Agent's language model                    |
 | `TELEGRAM_TOKEN`     | the `Telegram API` **credential** in n8n   | Authenticates the bot that sends messages                       |
-| `TELEGRAM_CHAT_ID`   | read directly via `{{ $env.TELEGRAM_CHAT_ID }}` in both Telegram nodes | Destination chat/channel/group for the digest and error alerts |
+| `TELEGRAM_CHAT_ID`   | an **n8n Variable**, read via `{{ $vars.TELEGRAM_CHAT_ID }}` in both Telegram nodes | Destination chat/channel/group for the digest and error alerts |
 
-`OPENAI_API_KEY` and `TELEGRAM_TOKEN` are **not** read from the environment by the workflow
-itself — they're entered once into n8n's encrypted credential store (see below), which is
-the standard, more secure way n8n handles secrets. `.env.example` documents them for your
-own records / secrets manager. `TELEGRAM_CHAT_ID` **is** read live from the environment at
-every execution, so it must be set on the n8n instance itself.
+`OPENAI_API_KEY` and `TELEGRAM_TOKEN` are entered once into n8n's encrypted credential
+store (see below) — the standard, secure way n8n handles secrets; they are never read from
+process environment variables by the workflow itself. `.env.example` documents them purely
+for your own records / secrets manager.
+
+`TELEGRAM_CHAT_ID` is **not** a secret, so it uses n8n's **Variables** feature instead of a
+credential: **Settings → Variables → Add Variable**, key `TELEGRAM_CHAT_ID`, value your
+numeric chat ID. This works identically on n8n Cloud and self-hosted, and — unlike
+`{{ $env.* }}` — is never blocked by the `N8N_BLOCK_ENV_ACCESS_IN_NODE` security setting
+that Cloud instances enforce.
 
 ## Setting up credentials
 
@@ -129,8 +138,9 @@ every execution, so it must be set on the n8n instance itself.
 1. n8n → **Credentials** → **New** → **Telegram API**.
 2. Paste your `TELEGRAM_TOKEN`. Save as `Telegram account`.
 3. Get your chat ID: message your bot once, then message `@get_id_bot` (or call
-   `https://api.telegram.org/bot<token>/getUpdates`) to read the numeric chat ID, and put
-   it in `TELEGRAM_CHAT_ID`.
+   `https://api.telegram.org/bot<token>/getUpdates`) to read the numeric chat ID.
+4. n8n → **Settings → Variables → Add Variable** → key `TELEGRAM_CHAT_ID`, value the chat
+   ID from step 3.
 
 ## Running manually
 
@@ -211,7 +221,7 @@ to a larger or smaller model.
 
 - No API keys, bot tokens, or chat IDs are hardcoded anywhere in `workflows/football-news-ai-digest.json`.
 - `OPENAI_API_KEY` and `TELEGRAM_TOKEN` live only in n8n's encrypted credential store.
-- `TELEGRAM_CHAT_ID` is read from the n8n instance's environment at runtime.
+- `TELEGRAM_CHAT_ID` is read at runtime from an n8n **Variable**, not baked into the workflow.
 - `.env` (with real secrets) should **never** be committed — only `.env.example` is tracked.
 
 ## Troubleshooting
@@ -220,7 +230,8 @@ to a larger or smaller model.
 |---|---|---|
 | Workflow doesn't fire at 08:00/20:00 | Workflow not activated, or instance timezone unexpected | Toggle **Active** on; check **Settings → Timezone** on the workflow/instance |
 | Telegram send fails with "chat not found" | `TELEGRAM_CHAT_ID` wrong, or bot never messaged first | Message the bot once, re-fetch chat ID via `getUpdates` |
-| `{{ $env.TELEGRAM_CHAT_ID }}` resolves to empty | Env var not set on the n8n process, or env access blocked | Confirm the var is set where n8n runs; ensure `N8N_BLOCK_ENV_ACCESS_IN_NODE` is not `true` |
+| `{{ $vars.TELEGRAM_CHAT_ID }}` resolves to empty | The n8n Variable doesn't exist yet | **Settings → Variables** → add `TELEGRAM_CHAT_ID` with your numeric chat ID |
+| `"access to env vars denied"` error on a Telegram node | Node still uses `{{ $env.TELEGRAM_CHAT_ID }}` (blocked on n8n Cloud) | Switch the `chatId` field to `{{ $vars.TELEGRAM_CHAT_ID }}` and set the Variable as above — this workflow already ships with `$vars` |
 | One RSS source frequently errors | Feed URL changed/blocked | Update the URL on that `Fetch …` node — the rest of the pipeline is unaffected either way |
 | Digest has fewer than 10 stories | Fewer than 10 articles survived filtering that cycle | Expected behavior — the AI only returns stories that pass the quality bar |
 | "No-Articles" alert fires often | Recency window (16h) too strict for your sources, or dedup threshold too aggressive | Adjust `RECENCY_HOURS` / `MIN_SIMILARITY` in the **Deduplicate & Filter Articles** code node |
